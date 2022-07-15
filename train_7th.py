@@ -79,6 +79,19 @@ def test_func(img_list, lab_list):
 
     return img, lab
 
+def cal_loss(model, images, labels):
+
+    with tf.GradientTape() as tape:
+
+        output = model(images, True)
+        output = tf.reshape(output, [-1, FLAGS.classes])
+        labels = tf.reshape(labels, [-1, FLAGS.classes])
+
+        # 여기서부터 ranking loss로 접근하는것!!
+
+
+    return loss
+
 def main():
     model = Fix_model(input_shape=(FLAGS.img_height, FLAGS.img_width, FLAGS.classes), classes=FLAGS.classes)
     prob = model_profiler(model, FLAGS.batch_size)
@@ -138,7 +151,9 @@ def main():
                 labels = tf.where(func4(batch_labels) & func5(batch_labels) & func6(batch_labels), 1, labels)
                 labels = tf.where(func1(batch_labels) & func2(batch_labels) & func3(batch_labels), 0, labels)
 
-                loss = 0
+                labels = tf.one_hot(labels, FLAGS.classes)
+
+                loss = cal_loss(model, batch_images, labels)
 
 
 
