@@ -1,5 +1,6 @@
 # -*- coding:utf-8 -*-
 from model_7th import *
+from random import random
 from model_profiler import model_profiler
 from color_to_gray import *
 
@@ -40,7 +41,7 @@ optim = tf.keras.optimizers.Adam(FLAGS.lr)
 
 def train_func(img_list, lab_list):
 
-    img = tf.io.read_file(image_list)
+    img = tf.io.read_file(img_list)
     img = tf.image.decode_jpeg(img, 3)
     img = tf.image.resize(img, [FLAGS.img_height, FLAGS.img_width])
     img = tf.image.random_brightness(img, max_delta=50.)
@@ -52,10 +53,9 @@ def train_func(img_list, lab_list):
     img = img / 255.
     img = tf.concat([img, img, img, img, img, img, img, img], -1)
 
-    lab = tf.io.read_file(label_list)
+    lab = tf.io.read_file(lab_list)
     lab = tf.image.decode_bmp(lab)
     lab = tf.image.resize(lab, [FLAGS.img_height, FLAGS.img_width], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-    lab = tf.image.convert_image_dtype(lab, tf.uint8)
 
     if random() > 0.5:
         img = tf.image.flip_left_right(img)
@@ -65,7 +65,7 @@ def train_func(img_list, lab_list):
 
 def test_func(img_list, lab_list):
 
-    img = tf.io.read_file(image_list)
+    img = tf.io.read_file(img_list)
     img = tf.image.decode_jpeg(img, 3)
     img = tf.image.resize(img, [FLAGS.img_height, FLAGS.img_width])
     img = tf.clip_by_value(img, 0, 255)
@@ -73,10 +73,9 @@ def test_func(img_list, lab_list):
     img = img / 255.
     img = tf.concat([img, img, img, img, img, img, img, img], -1)
 
-    lab = tf.io.read_file(label_list)
+    lab = tf.io.read_file(lab_list)
     lab = tf.image.decode_bmp(lab)
     lab = tf.image.resize(lab, [FLAGS.img_height, FLAGS.img_width], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-    lab = tf.image.convert_image_dtype(lab, tf.uint8)
 
     return img, lab
 
@@ -130,16 +129,16 @@ def main():
                 temp_batch_labels = tf.zeros([FLAGS.batch_size, FLAGS.img_height, FLAGS.img_width], tf.float32)
                 batch_images, batch_labels = next(tr_iter)
                 
-                batch_labels = tf.where(func22(batch_labels) & func23(batch_labels) & func24(batch_labels), 7, temp_batch_labels)
-                batch_labels = tf.where(func19(batch_labels) & func20(batch_labels) & func21(batch_labels), 6, temp_batch_labels)
-                batch_labels = tf.where(func16(batch_labels) & func17(batch_labels) & func18(batch_labels), 5, temp_batch_labels)
-                batch_labels = tf.where(func13(batch_labels) & func14(batch_labels) & func15(batch_labels), 4, temp_batch_labels)
-                batch_labels = tf.where(func10(batch_labels) & func11(batch_labels) & func12(batch_labels), 3, temp_batch_labels)
-                batch_labels = tf.where(func7(batch_labels) & func8(batch_labels) & func9(batch_labels), 2, temp_batch_labels)
-                batch_labels = tf.where(func4(batch_labels) & func5(batch_labels) & func6(batch_labels), 1, temp_batch_labels)
-                batch_labels = tf.where(func1(batch_labels) & func2(batch_labels) & func3(batch_labels), 0, temp_batch_labels)
+                labels = tf.where(func22(batch_labels) & func23(batch_labels) & func24(batch_labels), 7, temp_batch_labels)
+                labels = tf.where(func19(batch_labels) & func20(batch_labels) & func21(batch_labels), 6, labels)
+                labels = tf.where(func16(batch_labels) & func17(batch_labels) & func18(batch_labels), 5, labels)
+                labels = tf.where(func13(batch_labels) & func14(batch_labels) & func15(batch_labels), 4, labels)
+                labels = tf.where(func10(batch_labels) & func11(batch_labels) & func12(batch_labels), 3, labels)
+                labels = tf.where(func7(batch_labels) & func8(batch_labels) & func9(batch_labels), 2, labels)
+                labels = tf.where(func4(batch_labels) & func5(batch_labels) & func6(batch_labels), 1, labels)
+                labels = tf.where(func1(batch_labels) & func2(batch_labels) & func3(batch_labels), 0, labels)
 
-
+                loss = 0
 
 
 
