@@ -121,7 +121,8 @@ def cal_loss(model, images, labels, imbal):
         loss_7 = tf.keras.losses.BinaryCrossentropy(from_logits=True)(labels_7, predict_7)
 
         total_loss = imbal[0]*loss_0 + imbal[1]*loss_1 + imbal[2]*loss_2 + imbal[3]*loss_3 \
-            + imbal[4]*loss_4 + imbal[5]*loss_5 + imbal[6]*loss_6 + imbal[7]*loss_7
+            + imbal[4]*loss_4 + imbal[5]*loss_5 + imbal[6]*loss_6 + imbal[7]*loss_7 \
+            + tf.keras.losses.CategoricalCrossentropy(from_logits=True)(labels, output)
         
     grads = tape.gradient(total_loss, model.trainable_variables)
     optim.apply_gradients(zip(grads, model.trainable_variables))
@@ -208,17 +209,13 @@ def main():
                 if count % 100 == 0:
 
                     output = model(batch_images, False)
-                    output_0 = tf.nn.sigmoid(output[:, :, :, 0])
-                    output_1 = tf.nn.sigmoid(output[:, :, :, 1])
-                    output_2 = tf.nn.sigmoid(output[:, :, :, 2])
-                    output_3 = tf.nn.sigmoid(output[:, :, :, 3])
-                    output_4 = tf.nn.sigmoid(output[:, :, :, 4])
-                    output_5 = tf.nn.sigmoid(output[:, :, :, 5])
-                    output_6 = tf.nn.sigmoid(output[:, :, :, 6])
-                    output_7 = tf.nn.sigmoid(output[:, :, :, 7])
 
                     for i in range(FLAGS.batch_size):
-                        predict_0 = tf.where(output_0[i] >= 0.5, 1, 0) 
+                        predict = tf.nn.softmax(output[i], -1)
+                        predict = tf.argmax(predict, -1)
+                        predict = tf.cast(predict, tf.int32)
+
+
 
 
                 count += 1
