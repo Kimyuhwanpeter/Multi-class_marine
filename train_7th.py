@@ -208,6 +208,17 @@ def main():
                 if count % 100 == 0:
 
                     output = model(batch_images, False)
+                    output_0 = tf.nn.sigmoid(output[:, :, :, 0])
+                    output_1 = tf.nn.sigmoid(output[:, :, :, 1])
+                    output_2 = tf.nn.sigmoid(output[:, :, :, 2])
+                    output_3 = tf.nn.sigmoid(output[:, :, :, 3])
+                    output_4 = tf.nn.sigmoid(output[:, :, :, 4])
+                    output_5 = tf.nn.sigmoid(output[:, :, :, 5])
+                    output_6 = tf.nn.sigmoid(output[:, :, :, 6])
+                    output_7 = tf.nn.sigmoid(output[:, :, :, 7])
+
+                    for i in range(FLAGS.batch_size):
+                        predict_0 = tf.where(output_0[i] >= 0.5, 1, 0) 
 
 
                 count += 1
