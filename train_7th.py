@@ -79,7 +79,7 @@ def test_func(img_list, lab_list):
 
     return img, lab
 
-def cal_loss(model, images, labels):
+def cal_loss(model, images, labels, imbal):
 
     with tf.GradientTape() as tape:
 
@@ -87,10 +87,46 @@ def cal_loss(model, images, labels):
         output = tf.reshape(output, [-1, FLAGS.classes])
         labels = tf.reshape(labels, [-1, FLAGS.classes])
 
-        # 여기서부터 ranking loss로 접근하는것!!
+        # 0인지 아닌지, 1인지 아닌지, 2인지 아닌지...,...,...
+        predict_0, labels_0 = output[:, 0], labels[:, 0]
+        labels_0 = tf.where(labels_0 == 0, 1, 0)
+        loss_0 = tf.keras.losses.BinaryCrossentropy(from_logits=True)(labels_0, predict_0)
+        
+        predict_1, labels_1 = output[:, 1], labels[:, 1]
+        labels_1 = tf.where(labels_1 == 1, 1, 0)
+        loss_1 = tf.keras.losses.BinaryCrossentropy(from_logits=True)(labels_1, predict_1)
+        
+        predict_2, labels_2 = output[:, 2], labels[:, 2]
+        labels_2 = tf.where(labels_2 == 2, 1, 0)
+        loss_2 = tf.keras.losses.BinaryCrossentropy(from_logits=True)(labels_2, predict_2)
+        
+        predict_3, labels_3 = output[:, 3], labels[:, 3]
+        labels_3 = tf.where(labels_3 == 3, 1, 0)
+        loss_3 = tf.keras.losses.BinaryCrossentropy(from_logits=True)(labels_3, predict_3)
+        
+        predict_4, labels_4 = output[:, 4], labels[:, 4]
+        labels_4 = tf.where(labels_4 == 4, 1, 0)
+        loss_4 = tf.keras.losses.BinaryCrossentropy(from_logits=True)(labels_4, predict_4)
+        
+        predict_5, labels_5 = output[:, 5], labels[:, 5]
+        labels_5 = tf.where(labels_5 == 5, 1, 0)
+        loss_5 = tf.keras.losses.BinaryCrossentropy(from_logits=True)(labels_5, predict_5)
+        
+        predict_6, labels_6 = output[:, 6], labels[:, 6]
+        labels_6 = tf.where(labels_6 == 6, 1, 0)
+        loss_6 = tf.keras.losses.BinaryCrossentropy(from_logits=True)(labels_6, predict_6)
+        
+        predict_7, labels_7 = output[:, 7], labels[:, 7]
+        labels_7 = tf.where(labels_7 == 7, 1, 0)
+        loss_7 = tf.keras.losses.BinaryCrossentropy(from_logits=True)(labels_7, predict_7)
 
+        total_loss = imbal[0]*loss_0 + imbal[1]*loss_1 + imbal[2]*loss_2 + imbal[3]*loss_3 \
+            + imbal[4]*loss_4 + imbal[5]*loss_5 + imbal[6]*loss_6 + imbal[7]*loss_7
+        
+    grads = tape.gradient(total_loss, model.trainable_variables)
+    optim.apply_gradients(zip(grads, model.trainable_variables))
 
-    return loss
+    return total_loss
 
 def main():
     model = Fix_model(input_shape=(FLAGS.img_height, FLAGS.img_width, FLAGS.classes), classes=FLAGS.classes)
@@ -142,6 +178,16 @@ def main():
                 temp_batch_labels = tf.zeros([FLAGS.batch_size, FLAGS.img_height, FLAGS.img_width], tf.float32)
                 batch_images, batch_labels = next(tr_iter)
                 
+                class_imbal_labels = batch_labels
+                class_imbal_labels_buf = 0.
+                for i in range(FLAGS.batch_size):
+                    class_imbal_label = class_imbal_labels[i]
+                    class_imbal_label = np.reshape(class_imbal_label, [FLAGS.img_height*FLAGS.img_width, ])
+                    count_c_i_lab = np.bincount(class_imbal_label, minlength=FLAGS.classes)
+                    class_imbal_labels_buf += count_c_i_lab
+                class_imbal_labels_buf = (np.max(class_imbal_labels_buf / np.sum(class_imbal_labels_buf)) + 1 - (class_imbal_labels_buf / np.sum(class_imbal_labels_buf)))
+                class_imbal_labels_buf = tf.nn.softmax(class_imbal_labels_buf[0:FLAGS.total_classes-1]).numpy()
+
                 labels = tf.where(func22(batch_labels) & func23(batch_labels) & func24(batch_labels), 7, temp_batch_labels)
                 labels = tf.where(func19(batch_labels) & func20(batch_labels) & func21(batch_labels), 6, labels)
                 labels = tf.where(func16(batch_labels) & func17(batch_labels) & func18(batch_labels), 5, labels)
@@ -150,11 +196,21 @@ def main():
                 labels = tf.where(func7(batch_labels) & func8(batch_labels) & func9(batch_labels), 2, labels)
                 labels = tf.where(func4(batch_labels) & func5(batch_labels) & func6(batch_labels), 1, labels)
                 labels = tf.where(func1(batch_labels) & func2(batch_labels) & func3(batch_labels), 0, labels)
+                labels = tf.cast(labels, tf.uint8)
 
                 labels = tf.one_hot(labels, FLAGS.classes)
 
-                loss = cal_loss(model, batch_images, labels)
+                loss = cal_loss(model, batch_images, labels, class_imbal_labels_buf)
 
+                if count % 10 == 0:
+                    print("Epoch: {} [{}/{}] loss = {}".format(epoch, step+1, tr_idx, loss))
+
+                if count % 100 == 0:
+
+                    output = model(batch_images, False)
+
+
+                count += 1
 
 
 
