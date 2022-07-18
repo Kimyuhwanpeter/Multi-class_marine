@@ -1,4 +1,5 @@
 # -*- coding:utf-8 -*-
+from color_to_gray import *
 import tensorflow as tf
 import numpy as np
 
@@ -29,6 +30,10 @@ class Measurement:
 
         out = np.zeros((self.total_classes))
         miou = np.divide(cm, U, out=out, where=U != 0)
+
+        indices = np.where(miou != 0)
+        miou = np.take(miou, indices)
+
         miou = np.nanmean(miou)
 
         cm = tf.math.confusion_matrix(self.label, 
@@ -37,5 +42,27 @@ class Measurement:
 
         return miou, cm
 
+#lab = tf.io.read_file("D:/[1]DB/[5]4th_paper_DB/SUIM/Test/masks_fix/d_r_58_.bmp")
+#lab = tf.image.decode_bmp(lab)
+#lab = tf.image.resize(lab, [256, 320], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+#lab = tf.image.convert_image_dtype(lab, tf.uint8)
+#lab = lab[tf.newaxis, :, :, :]
 
+#temp_batch_labels = tf.zeros([1, 256, 320], tf.float32)
+#labels = tf.where(func22(lab) & func23(lab) & func24(lab), 7, temp_batch_labels)
+#labels = tf.where(func19(lab) & func20(lab) & func21(lab), 6, labels)
+#labels = tf.where(func16(lab) & func17(lab) & func18(lab), 5, labels)
+#labels = tf.where(func13(lab) & func14(lab) & func15(lab), 4, labels)
+#labels = tf.where(func10(lab) & func11(lab) & func12(lab), 3, labels)
+#labels = tf.where(func7(lab) & func8(lab) & func9(lab), 2, labels)
+#labels = tf.where(func4(lab) & func5(lab) & func6(lab), 1, labels)
+#labels = tf.where(func1(lab) & func2(lab) & func3(lab), 0, labels)
+#labels = tf.cast(labels, tf.uint8)
 
+#labels = labels[0]
+
+#miou_, cm = Measurement(predict=labels,
+#                    label=labels, 
+#                    shape=[256*320, ],
+#                    total_classes=8).MIOU()
+#print(miou_)
