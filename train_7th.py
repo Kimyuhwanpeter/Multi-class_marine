@@ -42,6 +42,7 @@ FLAGS = easydict.EasyDict({"img_height": 256,
                            
                            "sample_images": "/yuhwan/yuhwan/checkpoint/Segmenation/7th_paper/sample_images"})
 
+
 optim = tf.keras.optimizers.Adam(FLAGS.lr)
 color_map = np.array([[0,0,0], [0,0,255], [0, 255, 0], [0, 255, 255], [255, 0, 0], [255, 0, 255], [255, 255, 0], [255, 255, 255]], np.uint8)
 def train_func(img_list, lab_list):
@@ -54,7 +55,10 @@ def train_func(img_list, lab_list):
     img = tf.image.random_hue(img, max_delta=0.2)
     img = tf.image.random_contrast(img, lower=0.5, upper=1.5)
     img = tf.clip_by_value(img, 0, 255)
+    # img = tf.image.rgb_to_grayscale(img)
+    # img = tf.concat([img, img, img, img, img, img, img, img], -1)
     img = img / 255.
+    
 
     lab = tf.io.read_file(lab_list)
     lab = tf.image.decode_bmp(lab)
@@ -72,6 +76,8 @@ def test_func(img_list, lab_list):
     img = tf.image.decode_jpeg(img, 3)
     img = tf.image.resize(img, [FLAGS.img_height, FLAGS.img_width])
     img = tf.clip_by_value(img, 0, 255)
+    # img = tf.image.rgb_to_grayscale(img)
+    # img = tf.concat([img, img, img, img, img, img, img, img], -1)
     img = img / 255.
 
     lab = tf.io.read_file(lab_list)
@@ -191,18 +197,21 @@ def main():
         output_text = open(FLAGS.save_print, "w")
 
         tr_img_data = os.listdir(FLAGS.tr_img_path)
+        tr_lab_data = [tr_img_data[i].split('.')[0] + ".bmp" for i in range(len(tr_img_data))]
         tr_img_data = [FLAGS.tr_img_path + "/" + data for data in tr_img_data]
-        tr_img_data = np.array(tr_img_data)
-        tr_lab_data = os.listdir(FLAGS.tr_lab_path)
         tr_lab_data = [FLAGS.tr_lab_path + "/" + data for data in tr_lab_data]
-        tr_lab_data = np.array(tr_lab_data)
+        
+        tr_img_data, tr_lab_data = np.array(tr_img_data), np.array(tr_lab_data)
 
         te_img_data = os.listdir(FLAGS.te_img_path)
+        te_lab_data = [te_img_data[i].split('.')[0] + ".bmp" for i in range(len(te_img_data))]
         te_img_data = [FLAGS.te_img_path + "/" + data for data in te_img_data]
-        te_img_data = np.array(te_img_data)
-        te_lab_data = os.listdir(FLAGS.te_lab_path)
         te_lab_data = [FLAGS.te_lab_path + "/" + data for data in te_lab_data]
-        te_lab_data = np.array(te_lab_data)
+        
+        te_img_data, te_lab_data = np.array(te_img_data), np.array(te_lab_data)
+
+        # print(tr_img_data[0], tr_lab_data[0])
+        # print(te_img_data[0], te_lab_data[0])
 
         te_gener = tf.data.Dataset.from_tensor_slices((te_img_data, te_lab_data))
         te_gener = te_gener.map(test_func)
