@@ -35,10 +35,12 @@ FLAGS = easydict.EasyDict({"img_height": 256,
                            
                            "pre_checkpoint_path": "",
                            
-                           "save_checkpoint_path": ""})
+                           "save_checkpoint": "",
+                           
+                           "sample_images": ""})
 
 optim = tf.keras.optimizers.Adam(FLAGS.lr)
-
+color_map = np.array([[0,0,0], [0,0,255], [0, 255, 0], [0, 255, 255], [255, 0, 0], [255, 0, 255], [255, 255, 0], [255, 255, 255]], np.uint8)
 def train_func(img_list, lab_list):
 
     img = tf.io.read_file(img_list)
@@ -175,6 +177,7 @@ def main():
 
             tr_iter = iter(tr_gener)
             tr_idx = len(tr_img_data) // FLAGS.batch_size
+            tr_miou = 0.
             for step in range(tr_idx):
                 temp_batch_labels = tf.zeros([FLAGS.batch_size, FLAGS.img_height, FLAGS.img_width], tf.float32)
                 batch_images, batch_labels = next(tr_iter)
@@ -213,15 +216,72 @@ def main():
                     for i in range(FLAGS.batch_size):
                         predict = tf.nn.softmax(output[i], -1)
                         predict = tf.argmax(predict, -1)
-                        predict = tf.cast(predict, tf.int32)
+                        predict = tf.cast(predict, tf.int32).numpy()
+                        gt_images = tf.argmax(labels[i], -1)
+                        gt_images = tf.cast(gt_images, tf.int32).numpy()
+
+                        ground_images = color_map[gt_images]
+                        predict_images = color_map[predict]
+
+                        plt.imsave(FLAGS.sample_images + "/" + "{}_{}_predict.png".format(count, i), predict_images)
+                        plt.imsave(FLAGS.sample_images + "/" + "{}_{}_gt.png".format(count, i), ground_images)
+
+                temp_out = model(batch_images, False)
+                temp_predict = tf.nn.softmax(temp_out[0], -1)
+                temp_predict = tf.argmax(temp_predict, -1)
+                temp_predict = tf.cast(temp_predict, tf.int32)
+                temp_labels = tf.argmax(labels, -1)
+                temp_labels = tf.cast(temp_labels, tf.int32)
 
 
+                miou_, cm = Measurement(predict=temp_predict,
+                                    label=temp_labels, 
+                                    shape=[FLAGS.img_height*FLAGS.img_width, ], 
+                                    total_classes=FLAGS.classes).MIOU()
 
+                tr_miou += miou_
 
                 count += 1
 
+            print("mIoU (train) = %.4f" % (tr_miou / tr_idx))
 
+            te_iter = iter(te_gener)
+            te_idx = len(te_img_data)
+            te_miou = 0.
+            for j in range(te_idx):
+                temp_batch_labels = tf.zeros([FLAGS.batch_size, FLAGS.img_height, FLAGS.img_width], tf.float32)
+                test_images, test_labels = next(te_iter)
+                labels = tf.where(func22(test_labels) & func23(test_labels) & func24(test_labels), 7, temp_batch_labels)
+                labels = tf.where(func19(test_labels) & func20(test_labels) & func21(test_labels), 6, labels)
+                labels = tf.where(func16(test_labels) & func17(test_labels) & func18(test_labels), 5, labels)
+                labels = tf.where(func13(test_labels) & func14(test_labels) & func15(test_labels), 4, labels)
+                labels = tf.where(func10(test_labels) & func11(test_labels) & func12(test_labels), 3, labels)
+                labels = tf.where(func7(test_labels) & func8(test_labels) & func9(test_labels), 2, labels)
+                labels = tf.where(func4(test_labels) & func5(test_labels) & func6(test_labels), 1, labels)
+                labels = tf.where(func1(test_labels) & func2(test_labels) & func3(test_labels), 0, labels)
+                labels = tf.cast(labels, tf.int32)
 
+                outputs = model(test_images, False)
+                output = tf.nn.softmax(outputs[0], -1)
+                output = tf.argmax(output, -1)
+                output = tf.cast(output, tf.int32)
+                label = labels[0]
+
+                miou_, cm = Measurement(predict=output,
+                                    label=label, 
+                                    shape=[FLAGS.img_height*FLAGS.img_width, ], 
+                                    total_classes=FLAGS.classes).MIOU()
+                te_miou += miou_
+
+            print("mIoU (test) = %.4f" % (te_miou / len(te_img_data)))
+
+            model_dir = "%s/%s" % (FLAGS.save_checkpoint, epoch)
+            if not os.path.isdir(model_dir):
+                print("Make {} folder to store the weight!".format(epoch))
+                os.makedirs(model_dir)
+            ckpt = tf.train.Checkpoint(model=model, optim=optim)
+            ckpt_dir = model_dir + "/7th__model_{}.ckpt".format(epoch)
+            ckpt.save(ckpt_dir)
         
 
 
