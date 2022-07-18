@@ -16,19 +16,19 @@ FLAGS = easydict.EasyDict({"img_height": 256,
 
                            "classes": 8,
                            
-                           "batch_size": 8,
+                           "batch_size": 6,
                            
                            "epochs": 200,
                            
                            "lr": 0.0001,
                            
-                           "tr_img_path": "D:/[1]DB/[5]4th_paper_DB/SUIM/train_val/images",
+                           "tr_img_path": "/yuhwan/yuhwan/Dataset/Segmentation/SUIM/SUIM/Train/images",
                            
-                           "tr_lab_path": "D:/[1]DB/[5]4th_paper_DB/SUIM/train_val/masks",
+                           "tr_lab_path": "/yuhwan/yuhwan/Dataset/Segmentation/SUIM/SUIM/Train/masks",
                            
-                           "te_img_path": "D:/[1]DB/[5]4th_paper_DB/SUIM/TEST/images",
+                           "te_img_path": "/yuhwan/yuhwan/Dataset/Segmentation/SUIM/SUIM/Test/images",
                            
-                           "te_lab_path": "D:/[1]DB/[5]4th_paper_DB/SUIM/TEST/masks_fix",
+                           "te_lab_path": "/yuhwan/yuhwan/Dataset/Segmentation/SUIM/SUIM/Test/masks_fix",
 
                            "train": True,
                            
@@ -36,9 +36,11 @@ FLAGS = easydict.EasyDict({"img_height": 256,
                            
                            "pre_checkpoint_path": "",
                            
-                           "save_checkpoint": "",
+                           "save_checkpoint": "/yuhwan/yuhwan/checkpoint/Segmenation/7th_paper/checkpoint",
                            
-                           "sample_images": ""})
+                           "save_print": "/yuhwan/yuhwan/checkpoint/Segmenation/7th_paper/train_out.txt",
+                           
+                           "sample_images": "/yuhwan/yuhwan/checkpoint/Segmenation/7th_paper/sample_images"})
 
 optim = tf.keras.optimizers.Adam(FLAGS.lr)
 color_map = np.array([[0,0,0], [0,0,255], [0, 255, 0], [0, 255, 255], [255, 0, 0], [255, 0, 255], [255, 255, 0], [255, 255, 255]], np.uint8)
@@ -52,9 +54,7 @@ def train_func(img_list, lab_list):
     img = tf.image.random_hue(img, max_delta=0.2)
     img = tf.image.random_contrast(img, lower=0.5, upper=1.5)
     img = tf.clip_by_value(img, 0, 255)
-    img = tf.image.rgb_to_grayscale(img)
     img = img / 255.
-    img = tf.concat([img, img, img, img, img, img, img, img], -1)
 
     lab = tf.io.read_file(lab_list)
     lab = tf.image.decode_bmp(lab)
@@ -72,15 +72,21 @@ def test_func(img_list, lab_list):
     img = tf.image.decode_jpeg(img, 3)
     img = tf.image.resize(img, [FLAGS.img_height, FLAGS.img_width])
     img = tf.clip_by_value(img, 0, 255)
-    img = tf.image.rgb_to_grayscale(img)
     img = img / 255.
-    img = tf.concat([img, img, img, img, img, img, img, img], -1)
 
     lab = tf.io.read_file(lab_list)
     lab = tf.image.decode_bmp(lab)
     lab = tf.image.resize(lab, [FLAGS.img_height, FLAGS.img_width], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
 
     return img, lab
+
+def true_dice_loss(y_true, y_pred):
+    y_true = tf.cast(y_true, tf.float32)
+    y_pred = tf.math.sigmoid(y_pred)
+    numerator = 2 * tf.reduce_sum(y_true * y_pred)
+    denominator = tf.reduce_sum(y_true + y_pred)
+
+    return 1 - tf.math.divide(numerator, denominator)
 
 def cal_loss(model, images, labels, imbal):
 
@@ -93,39 +99,73 @@ def cal_loss(model, images, labels, imbal):
         # 0인지 아닌지, 1인지 아닌지, 2인지 아닌지...,...,...
         predict_0, labels_0 = output[:, 0], labels[:, 0]
         labels_0 = tf.where(labels_0 == 0, 1, 0)
-        loss_0 = tf.keras.losses.BinaryCrossentropy(from_logits=True)(labels_0, predict_0)
+        bin_0 = np.bincount(labels_0.numpy(), minlength=2)
+        if bin_0[1] != 0:
+            total_loss = true_dice_loss(labels_0, predict_0)
+        else:
+            total_loss = 0.
         
         predict_1, labels_1 = output[:, 1], labels[:, 1]
         labels_1 = tf.where(labels_1 == 1, 1, 0)
-        loss_1 = tf.keras.losses.BinaryCrossentropy(from_logits=True)(labels_1, predict_1)
+        bin_1 = np.bincount(labels_1.numpy(), minlength=2)
+        if bin_1[1] != 0:
+            total_loss += true_dice_loss(labels_1, predict_1)
+        else:
+            total_loss += 0.
         
         predict_2, labels_2 = output[:, 2], labels[:, 2]
         labels_2 = tf.where(labels_2 == 2, 1, 0)
-        loss_2 = tf.keras.losses.BinaryCrossentropy(from_logits=True)(labels_2, predict_2)
+        bin_2 = np.bincount(labels_2.numpy(), minlength=2)
+        if bin_2[1] != 0:
+            total_loss += true_dice_loss(labels_2, predict_2)
+        else:
+            total_loss += 0.
         
         predict_3, labels_3 = output[:, 3], labels[:, 3]
         labels_3 = tf.where(labels_3 == 3, 1, 0)
-        loss_3 = tf.keras.losses.BinaryCrossentropy(from_logits=True)(labels_3, predict_3)
+        bin_3 = np.bincount(labels_3.numpy(), minlength=2)
+        if bin_3[1] != 0:
+            total_loss += true_dice_loss(labels_3, predict_3)
+        else:
+            total_loss += 0.
         
         predict_4, labels_4 = output[:, 4], labels[:, 4]
         labels_4 = tf.where(labels_4 == 4, 1, 0)
-        loss_4 = tf.keras.losses.BinaryCrossentropy(from_logits=True)(labels_4, predict_4)
+        bin_4 = np.bincount(labels_4.numpy(), minlength=2)
+        if bin_4[1] != 0:
+            total_loss += true_dice_loss(labels_4, predict_4)
+        else:
+            total_loss += 0.
         
         predict_5, labels_5 = output[:, 5], labels[:, 5]
         labels_5 = tf.where(labels_5 == 5, 1, 0)
-        loss_5 = tf.keras.losses.BinaryCrossentropy(from_logits=True)(labels_5, predict_5)
+        bin_5 = np.bincount(labels_5.numpy(), minlength=2)
+        if bin_5[1] != 0:
+            total_loss += true_dice_loss(labels_5, predict_5)
+        else:
+            total_loss += 0.
         
         predict_6, labels_6 = output[:, 6], labels[:, 6]
         labels_6 = tf.where(labels_6 == 6, 1, 0)
-        loss_6 = tf.keras.losses.BinaryCrossentropy(from_logits=True)(labels_6, predict_6)
+        bin_6 = np.bincount(labels_6.numpy(), minlength=2)
+        if bin_6[1] != 0:
+            total_loss += true_dice_loss(labels_6, predict_6)
+        else:
+            total_loss += 0.
         
         predict_7, labels_7 = output[:, 7], labels[:, 7]
         labels_7 = tf.where(labels_7 == 7, 1, 0)
-        loss_7 = tf.keras.losses.BinaryCrossentropy(from_logits=True)(labels_7, predict_7)
+        bin_7 = np.bincount(labels_7.numpy(), minlength=2)
+        if bin_7[1] != 0:
+            total_loss += true_dice_loss(labels_7, predict_7)
+        else:
+            total_loss += 0.
 
-        total_loss = imbal[0]*loss_0 + imbal[1]*loss_1 + imbal[2]*loss_2 + imbal[3]*loss_3 \
-            + imbal[4]*loss_4 + imbal[5]*loss_5 + imbal[6]*loss_6 + imbal[7]*loss_7 \
-            + tf.keras.losses.CategoricalCrossentropy(from_logits=True)(labels, output)
+        total_loss += tf.keras.losses.CategoricalCrossentropy(from_logits=True)(labels, output)
+        
+        # total_loss = loss_0 + loss_1 + loss_2 + loss_3 \
+        #     + loss_4 + loss_5 + loss_6 + loss_7 \
+        #     + tf.keras.losses.CategoricalCrossentropy(from_logits=True)(labels, output)
         
     grads = tape.gradient(total_loss, model.trainable_variables)
     optim.apply_gradients(zip(grads, model.trainable_variables))
@@ -133,7 +173,7 @@ def cal_loss(model, images, labels, imbal):
     return total_loss
 
 def main():
-    model = Fix_model(input_shape=(FLAGS.img_height, FLAGS.img_width, FLAGS.classes), classes=FLAGS.classes)
+    model = Fix_model(input_shape=(FLAGS.img_height, FLAGS.img_width, 3), classes=FLAGS.classes)
     prob = model_profiler(model, FLAGS.batch_size)
     model.summary()
     print(prob)
@@ -148,6 +188,7 @@ def main():
     if FLAGS.train:
 
         count = 0
+        output_text = open(FLAGS.save_print, "w")
 
         tr_img_data = os.listdir(FLAGS.tr_img_path)
         tr_img_data = [FLAGS.tr_img_path + "/" + data for data in tr_img_data]
@@ -182,16 +223,6 @@ def main():
             for step in range(tr_idx):
                 temp_batch_labels = tf.zeros([FLAGS.batch_size, FLAGS.img_height, FLAGS.img_width], tf.float32)
                 batch_images, batch_labels = next(tr_iter)
-                
-                class_imbal_labels = batch_labels
-                class_imbal_labels_buf = 0.
-                for i in range(FLAGS.batch_size):
-                    class_imbal_label = class_imbal_labels[i]
-                    class_imbal_label = np.reshape(class_imbal_label, [FLAGS.img_height*FLAGS.img_width, ])
-                    count_c_i_lab = np.bincount(class_imbal_label, minlength=FLAGS.classes)
-                    class_imbal_labels_buf += count_c_i_lab
-                class_imbal_labels_buf = (np.max(class_imbal_labels_buf / np.sum(class_imbal_labels_buf)) + 1 - (class_imbal_labels_buf / np.sum(class_imbal_labels_buf)))
-                class_imbal_labels_buf = tf.nn.softmax(class_imbal_labels_buf[0:FLAGS.total_classes-1]).numpy()
 
                 labels = tf.where(func22(batch_labels) & func23(batch_labels) & func24(batch_labels), 7, temp_batch_labels)
                 labels = tf.where(func19(batch_labels) & func20(batch_labels) & func21(batch_labels), 6, labels)
@@ -202,6 +233,16 @@ def main():
                 labels = tf.where(func4(batch_labels) & func5(batch_labels) & func6(batch_labels), 1, labels)
                 labels = tf.where(func1(batch_labels) & func2(batch_labels) & func3(batch_labels), 0, labels)
                 labels = tf.cast(labels, tf.uint8)
+                
+                class_imbal_labels = labels
+                class_imbal_labels_buf = 0.
+                for i in range(FLAGS.batch_size):
+                    class_imbal_label = class_imbal_labels[i]
+                    class_imbal_label = np.reshape(class_imbal_label, [FLAGS.img_height*FLAGS.img_width, ])
+                    count_c_i_lab = np.bincount(class_imbal_label, minlength=FLAGS.classes)
+                    class_imbal_labels_buf += count_c_i_lab
+                class_imbal_labels_buf = (np.max(class_imbal_labels_buf / np.sum(class_imbal_labels_buf)) + 1 - (class_imbal_labels_buf / np.sum(class_imbal_labels_buf)))
+                class_imbal_labels_buf = tf.nn.softmax(class_imbal_labels_buf[0:FLAGS.classes]).numpy()
 
                 labels = tf.one_hot(labels, FLAGS.classes)
 
@@ -228,7 +269,7 @@ def main():
                         plt.imsave(FLAGS.sample_images + "/" + "{}_{}_gt.png".format(count, i), ground_images)
 
                 temp_out = model(batch_images, False)
-                temp_predict = tf.nn.softmax(temp_out[0], -1)
+                temp_predict = tf.nn.softmax(temp_out, -1)
                 temp_predict = tf.argmax(temp_predict, -1)
                 temp_predict = tf.cast(temp_predict, tf.int32)
                 temp_labels = tf.argmax(labels, -1)
@@ -237,14 +278,22 @@ def main():
 
                 miou_, cm = Measurement(predict=temp_predict,
                                     label=temp_labels, 
-                                    shape=[FLAGS.img_height*FLAGS.img_width, ], 
+                                    shape=[FLAGS.batch_size*FLAGS.img_height*FLAGS.img_width, ],
                                     total_classes=FLAGS.classes).MIOU()
 
                 tr_miou += miou_
 
                 count += 1
 
+            print("=================================================================================================================================================")
             print("mIoU (train) = %.4f" % (tr_miou / tr_idx))
+            output_text.write("Epoch: ")
+            output_text.write(str(epoch))
+            output_text.write("===================================================================")
+            output_text.write("\n")
+            output_text.write("train mIoU: ")
+            output_text.write("%.4f" % (tr_miou / tr_idx))
+            output_text.write("\n")
 
             te_iter = iter(te_gener)
             te_idx = len(te_img_data)
@@ -275,6 +324,14 @@ def main():
                 te_miou += miou_
 
             print("mIoU (test) = %.4f" % (te_miou / len(te_img_data)))
+            print("=================================================================================================================================================")
+            output_text.write("test mIoU: ")
+            output_text.write("%.4f" % (te_miou / len(te_img_data)))
+            output_text.write("\n")
+            output_text.write("===================================================================")
+            output_text.write("\n")
+            output_text.flush()
+            
 
             model_dir = "%s/%s" % (FLAGS.save_checkpoint, epoch)
             if not os.path.isdir(model_dir):
@@ -288,4 +345,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
