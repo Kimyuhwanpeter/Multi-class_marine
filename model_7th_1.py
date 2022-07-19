@@ -237,9 +237,25 @@ def model_7th_1(input_shape=(256, 320, 3), classes=8):
     h = [Conv2D(filters=1, kernel_size=3, padding="same")(h[i]) for i in range(classes)]
     h = tf.concat(h, -1)
 
+    model = tf.keras.Model(inputs=inputs, outputs=h)
 
+    backbone = tf.keras.applications.vgg16.VGG16(input_shape=(224, 224, 3))
+    
+    model.get_layer('block1_conv1').set_weights(backbone.get_layer('block1_conv1').get_weights())
+    model.get_layer('block1_conv2').set_weights(backbone.get_layer('block1_conv2').get_weights())
+    model.get_layer('block2_conv1').set_weights(backbone.get_layer('block2_conv1').get_weights())
+    model.get_layer('block2_conv2').set_weights(backbone.get_layer('block2_conv2').get_weights())
+    model.get_layer('block3_conv1').set_weights(backbone.get_layer('block3_conv1').get_weights())
+    model.get_layer('block3_conv2').set_weights(backbone.get_layer('block3_conv2').get_weights())
+    model.get_layer('block3_conv3').set_weights(backbone.get_layer('block3_conv3').get_weights())
+    model.get_layer('block4_conv1').set_weights(backbone.get_layer('block4_conv1').get_weights())
+    model.get_layer('block4_conv2').set_weights(backbone.get_layer('block4_conv2').get_weights())
+    model.get_layer('block4_conv3').set_weights(backbone.get_layer('block4_conv3').get_weights())
+    model.get_layer('block5_conv1').set_weights(backbone.get_layer('block5_conv1').get_weights())
+    model.get_layer('block5_conv2').set_weights(backbone.get_layer('block5_conv2').get_weights())
+    model.get_layer('block5_conv3').set_weights(backbone.get_layer('block5_conv3').get_weights())
 
-    return tf.keras.Model(inputs=inputs, outputs=h)
+    return model
 
 #m = model_7th_1()
 #prob = model_profiler(m, 10)
